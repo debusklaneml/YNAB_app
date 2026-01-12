@@ -1,7 +1,7 @@
 """Dashboard page - Financial overview."""
 
 import streamlit as st
-import pandas as pd
+import polars as pl
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
@@ -116,10 +116,10 @@ with chart_col1:
 
     if spending_by_cat:
         # Prepare data for pie chart
-        df = pd.DataFrame([
+        df = pl.DataFrame([
             {
                 'category': row['category_name'] or 'Uncategorized',
-                'amount': milliunits_to_dollars(row['total_amount'])
+                'amount': float(milliunits_to_dollars(row['total_amount']))
             }
             for row in spending_by_cat[:10]  # Top 10 categories
         ])
@@ -147,18 +147,18 @@ with chart_col2:
     full_trend = db.get_monthly_spending_trend(budget_id, months=12)
 
     if full_trend:
-        df = pd.DataFrame([
+        df = pl.DataFrame([
             {
                 'month': row['month'],
-                'amount': milliunits_to_dollars(row['total_amount'])
+                'amount': float(milliunits_to_dollars(row['total_amount']))
             }
             for row in full_trend
         ])
 
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=df['month'],
-            y=df['amount'],
+            x=df['month'].to_list(),
+            y=df['amount'].to_list(),
             marker_color='#4CAF50'
         ))
         fig.update_layout(
