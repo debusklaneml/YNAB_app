@@ -1,7 +1,7 @@
 """Recurring transactions page - View and monitor scheduled transactions."""
 
 import streamlit as st
-import pandas as pd
+import polars as pl
 from datetime import date, datetime, timedelta
 
 from src.utils.formatters import milliunits_to_dollars
@@ -158,11 +158,11 @@ st.divider()
 st.subheader("All Recurring Transactions")
 
 # Create dataframe
-df = pd.DataFrame([
+df = pl.DataFrame([
     {
         'Payee': sched['payee_name'] or 'Unknown',
         'Category': sched['category_name'] or 'Uncategorized',
-        'Amount': milliunits_to_dollars(sched['amount']),
+        'Amount': float(milliunits_to_dollars(sched['amount'])),
         'Frequency': (sched['frequency'] or 'monthly').replace('_', ' ').title(),
         'Next Date': sched['date_next'],
         'Account': sched['account_name'] or 'Unknown'
@@ -174,10 +174,10 @@ df = pd.DataFrame([
 sort_by = st.selectbox("Sort by", options=['Next Date', 'Amount', 'Payee', 'Category'])
 ascending = st.checkbox("Ascending", value=True)
 
-df_sorted = df.sort_values(by=sort_by, ascending=ascending)
+df_sorted = df.sort(sort_by, descending=not ascending)
 
 st.dataframe(
-    df_sorted.style.format({
+    df_sorted.to_pandas().style.format({
         'Amount': '${:,.2f}'
     }),
     use_container_width=True
@@ -185,7 +185,7 @@ st.dataframe(
 
 # Export option
 st.divider()
-csv = df_sorted.to_csv(index=False)
+csv = df_sorted.write_csv()
 st.download_button(
     label="Download CSV",
     data=csv,
@@ -205,20 +205,20 @@ for sched in scheduled:
     freq_counts[freq]['count'] += 1
     freq_counts[freq]['total'] += abs(sched['amount'])
 
-df_freq = pd.DataFrame([
+df_freq = pl.DataFrame([
     {
         'Frequency': freq,
         'Count': data['count'],
-        'Total Amount': milliunits_to_dollars(data['total'])
+        'Total Amount': float(milliunits_to_dollars(data['total']))
     }
     for freq, data in freq_counts.items()
-]).sort_values('Count', ascending=False)
+]).sort('Count', descending=True)
 
 col1, col2 = st.columns(2)
 
 with col1:
     st.dataframe(
-        df_freq.style.format({
+        df_freq.to_pandas().style.format({
             'Total Amount': '${:,.2f}'
         }),
         use_container_width=True
