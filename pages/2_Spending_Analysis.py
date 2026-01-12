@@ -1,7 +1,7 @@
 """Spending Analysis page - Deep dive into spending patterns."""
 
 import streamlit as st
-import pandas as pd
+import polars as pl
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -66,12 +66,12 @@ st.subheader("Spending Breakdown")
 
 if spending_by_cat:
     # Create dataframe
-    df = pd.DataFrame([
+    df = pl.DataFrame([
         {
             'Category': row['category_name'] or 'Uncategorized',
-            'Amount': milliunits_to_dollars(row['total_amount']),
+            'Amount': float(milliunits_to_dollars(row['total_amount'])),
             'Count': row['transaction_count'],
-            'Avg': milliunits_to_dollars(row['total_amount'] // row['transaction_count']) if row['transaction_count'] > 0 else 0
+            'Avg': float(milliunits_to_dollars(row['total_amount'] // row['transaction_count'])) if row['transaction_count'] > 0 else 0.0
         }
         for row in spending_by_cat
     ])
@@ -93,10 +93,10 @@ if spending_by_cat:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Data table
+    # Data table (convert to pandas for styling)
     with st.expander("View Detailed Data"):
         st.dataframe(
-            df.style.format({
+            df.to_pandas().style.format({
                 'Amount': '${:,.2f}',
                 'Count': '{:,}',
                 'Avg': '${:,.2f}'
@@ -112,10 +112,10 @@ st.divider()
 st.subheader("Monthly Spending Trend")
 
 if monthly_trend:
-    df_trend = pd.DataFrame([
+    df_trend = pl.DataFrame([
         {
             'Month': row['month'],
-            'Amount': milliunits_to_dollars(row['total_amount'])
+            'Amount': float(milliunits_to_dollars(row['total_amount']))
         }
         for row in monthly_trend
     ])
@@ -127,8 +127,8 @@ if monthly_trend:
 
     # Bar chart
     fig.add_trace(go.Bar(
-        x=df_trend['Month'],
-        y=df_trend['Amount'],
+        x=df_trend['Month'].to_list(),
+        y=df_trend['Amount'].to_list(),
         name='Monthly Spending',
         marker_color='#4CAF50'
     ))
@@ -152,8 +152,8 @@ if monthly_trend:
 
     # Month-over-month change
     if len(df_trend) >= 2:
-        current = df_trend.iloc[-1]['Amount']
-        previous = df_trend.iloc[-2]['Amount']
+        current = df_trend['Amount'][-1]
+        previous = df_trend['Amount'][-2]
         change = ((current - previous) / previous * 100) if previous > 0 else 0
 
         col1, col2, col3 = st.columns(3)
@@ -196,20 +196,20 @@ if category_groups:
                 })
 
         if group_spending:
-            df_group = pd.DataFrame(group_spending)
+            df_group = pl.DataFrame(group_spending)
 
             # Comparison chart
             fig = go.Figure()
             fig.add_trace(go.Bar(
                 name='Spent',
-                x=df_group['Category'],
-                y=df_group['Amount'],
+                x=df_group['Category'].to_list(),
+                y=df_group['Amount'].to_list(),
                 marker_color='#FF6B6B'
             ))
             fig.add_trace(go.Bar(
                 name='Budgeted',
-                x=df_group['Category'],
-                y=df_group['Budgeted'],
+                x=df_group['Category'].to_list(),
+                y=df_group['Budgeted'].to_list(),
                 marker_color='#4ECDC4'
             ))
             fig.update_layout(
@@ -221,7 +221,7 @@ if category_groups:
             st.plotly_chart(fig, use_container_width=True)
 
             st.dataframe(
-                df_group.style.format({
+                df_group.to_pandas().style.format({
                     'Amount': '${:,.2f}',
                     'Budgeted': '${:,.2f}',
                     'Transactions': '{:,}'
@@ -253,12 +253,12 @@ if recent_txns:
     # Sort and display top 10
     sorted_payees = sorted(payee_totals.items(), key=lambda x: x[1]['amount'], reverse=True)[:10]
 
-    df_payees = pd.DataFrame([
+    df_payees = pl.DataFrame([
         {
             'Payee': payee,
-            'Total': milliunits_to_dollars(data['amount']),
+            'Total': float(milliunits_to_dollars(data['amount'])),
             'Transactions': data['count'],
-            'Avg': milliunits_to_dollars(data['amount'] // data['count']) if data['count'] > 0 else 0
+            'Avg': float(milliunits_to_dollars(data['amount'] // data['count'])) if data['count'] > 0 else 0.0
         }
         for payee, data in sorted_payees
     ])
@@ -277,7 +277,7 @@ if recent_txns:
 
     with col2:
         st.dataframe(
-            df_payees.style.format({
+            df_payees.to_pandas().style.format({
                 'Total': '${:,.2f}',
                 'Transactions': '{:,}',
                 'Avg': '${:,.2f}'
