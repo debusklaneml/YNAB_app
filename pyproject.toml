@@ -1,13 +1,13 @@
 [project]
-name = "bud"
+name = "ynab-app"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=2.2.6",
-    "pandas>=2.3.3",
     "plotly>=6.5.1",
+    "polars>=1.37.0",
     "pydantic>=2.12.5",
     "streamlit>=1.52.2",
     "ynab>=1.9.0",
