@@ -61,10 +61,16 @@ recurring_days_critical = 7       # Days past due before critical
 
 YNAB API allows 200 requests per hour. BUD uses delta sync (`last_knowledge_of_server`) to minimize API calls.
 
+## Testing
+
+```bash
+uv run pytest
+```
+
 ## Project Structure
 
 ```
-bud/
+YNAB_app/
 ├── app.py                    # Main Streamlit application
 ├── pages/                    # Streamlit pages
 │   ├── 1_Dashboard.py
@@ -77,6 +83,7 @@ bud/
 │   ├── cache/                # SQLite database & sync
 │   ├── alerts/               # Alert detection algorithms
 │   └── utils/                # Utilities
+├── tests/                    # Test suite
 └── .streamlit/               # Streamlit configuration
 ```
 

@@ -51,42 +51,6 @@ wheels = [
 ]
 
 [[package]]
-name = "bud"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "plotly" },
-    { name = "polars" },
-    { name = "pydantic" },
-    { name = "streamlit" },
-    { name = "ynab" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "numpy", specifier = ">=2.2.6" },
-    { name = "plotly", specifier = ">=6.5.1" },
-    { name = "polars", specifier = ">=1.37.0" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "streamlit", specifier = ">=1.52.2" },
-    { name = "ynab", specifier = ">=1.9.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=9.0.2" },
-    { name = "ruff", specifier = ">=0.14.11" },
-]
-
-[[package]]
 name = "cachetools"
 version = "6.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1422,4 +1386,40 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/9a/3e/36599ae876db3e1d32e393ab0934547df75bab70373c14ca5805246f99bc/ynab-1.9.0.tar.gz", hash = "sha256:fa50bdff641b3a273661e9f6e8a210f5ad98991a998dc09dec0a8122d734d1c6", size = 64898, upload-time = "2025-10-06T19:14:32.707Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b2/9c/0ccd11bcdf7522fcb2823fcd7ffbb48e3164d72caaf3f920c7b068347175/ynab-1.9.0-py3-none-any.whl", hash = "sha256:72ac0219605b4280149684ecd0fec3bd75d938772d65cdeea9b3e66a1b2f470d", size = 208674, upload-time = "2025-10-06T19:14:31.719Z" },
+]
+
+[[package]]
+name = "ynab-app"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "plotly" },
+    { name = "polars" },
+    { name = "pydantic" },
+    { name = "streamlit" },
+    { name = "ynab" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numpy", specifier = ">=2.2.6" },
+    { name = "plotly", specifier = ">=6.5.1" },
+    { name = "polars", specifier = ">=1.37.0" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "streamlit", specifier = ">=1.52.2" },
+    { name = "ynab", specifier = ">=1.9.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "ruff", specifier = ">=0.14.11" },
 ]
