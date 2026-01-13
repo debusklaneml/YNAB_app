@@ -3,11 +3,19 @@
 from datetime import datetime
 from typing import Optional
 import logging
+import sys
 
 from src.api.ynab_client import YNABClient, RateLimitExceeded
 from src.cache.database import Database
 
+# Configure logging to show in console
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class SyncError(Exception):
@@ -83,11 +91,15 @@ class SyncManager:
 
         # Sync transactions
         try:
+            logger.info("Starting transaction sync...")
             count = self._sync_transactions(budget_id, force_full)
             stats['transactions'] = count
+            logger.info(f"Transaction sync complete: {count} transactions")
         except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
             stats['errors'].append(f"Transactions: {e}")
-            logger.error(f"Error syncing transactions: {e}")
+            logger.error(f"Error syncing transactions: {e}\n{error_detail}")
 
         # Sync scheduled transactions
         try:
@@ -166,7 +178,7 @@ class SyncManager:
                 budget_id=budget_id,
                 account_id=txn.account_id,
                 account_name=txn.account_name,
-                txn_date=str(txn.date),
+                txn_date=str(txn.var_date),
                 amount=txn.amount,
                 memo=txn.memo,
                 cleared=txn.cleared,
