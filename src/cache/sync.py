@@ -3,19 +3,11 @@
 from datetime import datetime
 from typing import Optional
 import logging
-import sys
 
 from src.api.ynab_client import YNABClient, RateLimitExceeded
 from src.cache.database import Database
 
-# Configure logging to show in console
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class SyncError(Exception):

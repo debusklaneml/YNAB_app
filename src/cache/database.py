@@ -576,3 +576,13 @@ class Database:
                 WHERE c.budget_id = ? AND c.hidden = 0
                 ORDER BY c.category_group_name, c.name
             """, (current_month, budget_id)).fetchall()
+
+    def get_latest_transaction_date(self, budget_id: str) -> Optional[str]:
+        """Get the date of the most recent transaction."""
+        with self._get_connection() as conn:
+            row = conn.execute("""
+                SELECT MAX(date) as latest_date
+                FROM transactions
+                WHERE budget_id = ? AND deleted = 0
+            """, (budget_id,)).fetchone()
+            return row['latest_date'] if row else None

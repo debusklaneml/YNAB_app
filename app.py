@@ -139,6 +139,11 @@ with st.sidebar:
         else:
             st.caption("Never synced")
 
+        # Latest transaction date
+        latest_txn_date = db.get_latest_transaction_date(selected)
+        if latest_txn_date:
+            st.caption(f"Latest transaction: {latest_txn_date}")
+
         # API rate limit display
         remaining = client.requests_remaining
         st.progress(remaining / 200, text=f"API: {remaining}/200 requests")
