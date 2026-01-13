@@ -147,7 +147,8 @@ class Database:
 
     def __init__(self, db_path: Optional[Path] = None):
         if db_path is None:
-            db_path = Path.home() / ".bud" / "cache.db"
+            # Store database in project's data directory
+            db_path = Path(__file__).parent.parent.parent / "data" / "cache.db"
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_schema()

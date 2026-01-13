@@ -53,7 +53,7 @@ recurring_days_critical = 7       # Days past due before critical
 
 ## Data Privacy
 
-- All data is cached locally in SQLite (`~/.bud/cache.db`)
+- All data is cached locally in SQLite (`data/cache.db` within the project)
 - No data is sent to third parties
 - API communication is directly with YNAB over HTTPS
 
@@ -83,6 +83,8 @@ YNAB_app/
 │   ├── cache/                # SQLite database & sync
 │   ├── alerts/               # Alert detection algorithms
 │   └── utils/                # Utilities
+├── data/                     # Local data storage (gitignored)
+│   └── cache.db              # SQLite database cache
 ├── tests/                    # Test suite
 └── .streamlit/               # Streamlit configuration
 ```
