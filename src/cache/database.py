@@ -586,3 +586,36 @@ class Database:
                 WHERE budget_id = ? AND deleted = 0
             """, (budget_id,)).fetchone()
             return row['latest_date'] if row else None
+
+    def get_available_months(self, budget_id: str) -> list[str]:
+        """Get list of months that have transactions (YYYY-MM format)."""
+        with self._get_connection() as conn:
+            rows = conn.execute("""
+                SELECT DISTINCT strftime('%Y-%m', date) as month
+                FROM transactions
+                WHERE budget_id = ? AND deleted = 0
+                ORDER BY month DESC
+            """, (budget_id,)).fetchall()
+            return [row['month'] for row in rows]
+
+    def get_spending_by_category_for_month(self, budget_id: str, month: str) -> list[sqlite3.Row]:
+        """Get total spending grouped by category for a specific month."""
+        with self._get_connection() as conn:
+            return conn.execute("""
+                SELECT category_id, category_name, SUM(ABS(amount)) as total_amount, COUNT(*) as transaction_count
+                FROM transactions
+                WHERE budget_id = ? AND deleted = 0 AND amount < 0
+                AND strftime('%Y-%m', date) = ?
+                GROUP BY category_id, category_name
+                ORDER BY total_amount DESC
+            """, (budget_id, month)).fetchall()
+
+    def get_transactions_for_month(self, budget_id: str, month: str) -> list[sqlite3.Row]:
+        """Get all transactions for a specific month."""
+        with self._get_connection() as conn:
+            return conn.execute("""
+                SELECT * FROM transactions
+                WHERE budget_id = ? AND deleted = 0
+                AND strftime('%Y-%m', date) = ?
+                ORDER BY date DESC
+            """, (budget_id, month)).fetchall()

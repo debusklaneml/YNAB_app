@@ -4,7 +4,7 @@ import streamlit as st
 import polars as pl
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from src.utils.formatters import milliunits_to_dollars
 
@@ -18,31 +18,51 @@ if not db or not budget_id:
     st.warning("Please select a budget from the sidebar")
     st.stop()
 
+
+def format_month_label(month_str: str) -> str:
+    """Convert YYYY-MM to 'January 2025' format."""
+    try:
+        dt = datetime.strptime(month_str, "%Y-%m")
+        return dt.strftime("%B %Y")
+    except ValueError:
+        return month_str
+
+
+# Get available months
+available_months = db.get_available_months(budget_id)
+
+if not available_months:
+    st.warning("No transaction data available. Please sync your data.")
+    st.stop()
+
 # Filters
 st.sidebar.subheader("Filters")
 
-# Time range selector
-time_options = {
-    "This Month": 1,
-    "Last 3 Months": 3,
-    "Last 6 Months": 6,
-    "Last 12 Months": 12,
-    "All Time": 36
-}
-selected_time = st.sidebar.selectbox("Time Period", options=list(time_options.keys()), index=1)
-months = time_options[selected_time]
+# Month selector
+month_labels = {m: format_month_label(m) for m in available_months}
+selected_month = st.sidebar.selectbox(
+    "Month",
+    options=available_months,
+    format_func=lambda x: month_labels.get(x, x),
+    index=0  # Default to most recent month
+)
 
 # Category filter
 categories = db.get_categories(budget_id, include_hidden=False)
 category_names = ["All Categories"] + sorted(set(cat['name'] for cat in categories))
 selected_category = st.sidebar.selectbox("Category", options=category_names)
 
-# Get spending data
-spending_by_cat = db.get_spending_by_category(budget_id, months=months)
-monthly_trend = db.get_monthly_spending_trend(budget_id, months=months)
+# Get spending data for selected month
+spending_by_cat = db.get_spending_by_category_for_month(budget_id, selected_month)
+transactions = db.get_transactions_for_month(budget_id, selected_month)
+
+# Filter by category if selected
+if selected_category != "All Categories":
+    spending_by_cat = [s for s in spending_by_cat if s['category_name'] == selected_category]
+    transactions = [t for t in transactions if t['category_name'] == selected_category]
 
 # Summary metrics
-st.subheader("Summary")
+st.subheader(f"Summary - {month_labels[selected_month]}")
 
 col1, col2, col3 = st.columns(3)
 
@@ -93,7 +113,7 @@ if spending_by_cat:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # Data table (convert to pandas for styling)
+    # Data table
     with st.expander("View Detailed Data"):
         st.dataframe(
             df.to_pandas().style.format({
@@ -104,12 +124,14 @@ if spending_by_cat:
             use_container_width=True
         )
 else:
-    st.info("No spending data available for the selected period.")
+    st.info("No spending data available for the selected month.")
 
 st.divider()
 
-# Monthly trend analysis
+# Monthly trend analysis (show last 12 months for context)
 st.subheader("Monthly Spending Trend")
+
+monthly_trend = db.get_monthly_spending_trend(budget_id, months=12)
 
 if monthly_trend:
     df_trend = pl.DataFrame([
@@ -123,14 +145,16 @@ if monthly_trend:
     # Calculate average for reference line
     avg_monthly = df_trend['Amount'].mean()
 
+    # Highlight selected month
+    colors = ['#4CAF50' if m == selected_month else '#2E7D32' for m in df_trend['Month'].to_list()]
+
     fig = go.Figure()
 
-    # Bar chart
     fig.add_trace(go.Bar(
         x=df_trend['Month'].to_list(),
         y=df_trend['Amount'].to_list(),
         name='Monthly Spending',
-        marker_color='#4CAF50'
+        marker_color=colors
     ))
 
     # Average line
@@ -150,15 +174,16 @@ if monthly_trend:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # Month-over-month change
-    if len(df_trend) >= 2:
-        current = df_trend['Amount'][-1]
-        previous = df_trend['Amount'][-2]
+    # Compare to previous month
+    current_idx = df_trend['Month'].to_list().index(selected_month) if selected_month in df_trend['Month'].to_list() else -1
+    if current_idx > 0:
+        current = df_trend['Amount'][current_idx]
+        previous = df_trend['Amount'][current_idx - 1]
         change = ((current - previous) / previous * 100) if previous > 0 else 0
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric("Current Month", f"${current:,.2f}")
+            st.metric("Selected Month", f"${current:,.2f}")
         with col2:
             st.metric("Previous Month", f"${previous:,.2f}")
         with col3:
@@ -169,80 +194,12 @@ else:
 
 st.divider()
 
-# Category deep dive
-st.subheader("Category Deep Dive")
-
-# Get unique category groups
-category_groups = sorted(set(cat['category_group_name'] for cat in categories if cat['category_group_name']))
-
-if category_groups:
-    selected_group = st.selectbox("Select Category Group", options=category_groups)
-
-    # Filter categories by group
-    group_categories = [cat for cat in categories if cat['category_group_name'] == selected_group]
-
-    if group_categories:
-        # Create spending breakdown for this group
-        group_spending = []
-        for cat in group_categories:
-            cat_txns = db.get_category_transactions(budget_id, cat['id'], months=months)
-            if cat_txns:
-                total = sum(abs(t['amount']) for t in cat_txns if t['amount'] < 0)
-                group_spending.append({
-                    'Category': cat['name'],
-                    'Amount': milliunits_to_dollars(total),
-                    'Budgeted': milliunits_to_dollars(cat['budgeted'] or 0),
-                    'Transactions': len(cat_txns)
-                })
-
-        if group_spending:
-            df_group = pl.DataFrame(group_spending)
-
-            # Comparison chart
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                name='Spent',
-                x=df_group['Category'].to_list(),
-                y=df_group['Amount'].to_list(),
-                marker_color='#FF6B6B'
-            ))
-            fig.add_trace(go.Bar(
-                name='Budgeted',
-                x=df_group['Category'].to_list(),
-                y=df_group['Budgeted'].to_list(),
-                marker_color='#4ECDC4'
-            ))
-            fig.update_layout(
-                barmode='group',
-                xaxis_title="Category",
-                yaxis_title="Amount ($)",
-                margin=dict(l=20, r=20, t=40, b=20)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-            st.dataframe(
-                df_group.to_pandas().style.format({
-                    'Amount': '${:,.2f}',
-                    'Budgeted': '${:,.2f}',
-                    'Transactions': '{:,}'
-                }),
-                use_container_width=True
-            )
-        else:
-            st.info("No spending in this category group for the selected period.")
-else:
-    st.info("No category groups found.")
-
-st.divider()
-
-# Top payees
+# Top payees for selected month
 st.subheader("Top Payees")
 
-# Get transactions and aggregate by payee
-recent_txns = db.get_recent_transactions(budget_id, days=months * 30)
-if recent_txns:
+if transactions:
     payee_totals = {}
-    for txn in recent_txns:
+    for txn in transactions:
         if txn['amount'] < 0:  # Only outflows
             payee = txn['payee_name'] or 'Unknown'
             if payee not in payee_totals:
@@ -250,39 +207,67 @@ if recent_txns:
             payee_totals[payee]['amount'] += abs(txn['amount'])
             payee_totals[payee]['count'] += 1
 
-    # Sort and display top 10
-    sorted_payees = sorted(payee_totals.items(), key=lambda x: x[1]['amount'], reverse=True)[:10]
+    if payee_totals:
+        # Sort and display top 10
+        sorted_payees = sorted(payee_totals.items(), key=lambda x: x[1]['amount'], reverse=True)[:10]
 
-    df_payees = pl.DataFrame([
-        {
-            'Payee': payee,
-            'Total': float(milliunits_to_dollars(data['amount'])),
-            'Transactions': data['count'],
-            'Avg': float(milliunits_to_dollars(data['amount'] // data['count'])) if data['count'] > 0 else 0.0
-        }
-        for payee, data in sorted_payees
-    ])
+        df_payees = pl.DataFrame([
+            {
+                'Payee': payee,
+                'Total': float(milliunits_to_dollars(data['amount'])),
+                'Transactions': data['count'],
+                'Avg': float(milliunits_to_dollars(data['amount'] // data['count'])) if data['count'] > 0 else 0.0
+            }
+            for payee, data in sorted_payees
+        ])
 
-    col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2)
 
-    with col1:
-        fig = px.pie(
-            df_payees,
-            values='Total',
-            names='Payee',
-            hole=0.4
-        )
-        fig.update_layout(margin=dict(l=20, r=20, t=20, b=20))
-        st.plotly_chart(fig, use_container_width=True)
+        with col1:
+            fig = px.pie(
+                df_payees,
+                values='Total',
+                names='Payee',
+                hole=0.4
+            )
+            fig.update_layout(margin=dict(l=20, r=20, t=20, b=20))
+            st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
+        with col2:
+            st.dataframe(
+                df_payees.to_pandas().style.format({
+                    'Total': '${:,.2f}',
+                    'Transactions': '{:,}',
+                    'Avg': '${:,.2f}'
+                }),
+                use_container_width=True
+            )
+    else:
+        st.info("No outflow transactions for the selected month.")
+else:
+    st.info("No transaction data available for the selected month.")
+
+st.divider()
+
+# Transaction list
+st.subheader("Transactions")
+
+outflow_txns = [t for t in transactions if t['amount'] < 0]
+if outflow_txns:
+    with st.expander(f"View All Transactions ({len(outflow_txns)})"):
+        txn_data = pl.DataFrame([
+            {
+                'Date': t['date'],
+                'Payee': t['payee_name'] or 'Unknown',
+                'Category': t['category_name'] or 'Uncategorized',
+                'Amount': float(milliunits_to_dollars(abs(t['amount']))),
+                'Memo': t['memo'] or ''
+            }
+            for t in outflow_txns
+        ])
         st.dataframe(
-            df_payees.to_pandas().style.format({
-                'Total': '${:,.2f}',
-                'Transactions': '{:,}',
-                'Avg': '${:,.2f}'
-            }),
+            txn_data.to_pandas().style.format({'Amount': '${:,.2f}'}),
             use_container_width=True
         )
 else:
-    st.info("No transaction data available.")
+    st.info("No transactions for the selected filters.")
