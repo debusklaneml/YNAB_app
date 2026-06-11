@@ -1,5 +1,11 @@
 # BUD - Budget Dashboard
 
+> **Agentic dev workflow (reference):** This project follows the GitHub-native
+> workflow documented in
+> `/Users/morganldebusk-lane/dev/vibe-templates/agentic_dev_workflow.md` — shared
+> state lives in GitHub issues/sub-issues with native `blocked by` dependencies;
+> use the `/next`, `/claim`, and `/plan-ingest` commands. No beads.
+
 ## Project Overview
 A Streamlit app that connects to YNAB (You Need A Budget) API to provide spending insights, anomaly detection, and budget monitoring.
 
